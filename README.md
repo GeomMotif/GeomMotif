@@ -1,6 +1,6 @@
-# GeoMotif
+# GeomMotif
 
-We introduce GeoMotif, a systematic benchmark that evaluates arbitrary structural fragment preservation without requiring functional specificity. We sample 57 tasks from the PDB, each containing one or two motifs with up to 7 continuous fragments. The tasks are characterized by structural and physicochemical properties: size, geometric context, secondary structure, hydrophobicity, charge, and degree of burial. We evaluate models using scRMSD and pLDDT for geometric fidelity and clustering for structural diversity and novelty. 
+We introduce GeomMotif, a systematic benchmark that evaluates arbitrary structural fragment preservation without requiring functional specificity. We sample 57 tasks from the PDB, each containing one or two motifs with up to 7 continuous fragments. The tasks are characterized by structural and physicochemical properties: size, geometric context, secondary structure, hydrophobicity, charge, and degree of burial. We evaluate models using scRMSD and pLDDT for geometric fidelity and clustering for structural diversity and novelty. 
 
 ## Models validation
 ![Benchmark validation pipeline](evaluation.png)
