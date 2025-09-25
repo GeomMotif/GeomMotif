@@ -17,10 +17,11 @@ cd evaluation/mpnn
 git clone https://github.com/dauparas/ProteinMPNN.git
 ```
 
-
-
 ### Usage
 Example input files are in `evaluation/example` folder. \
+
+Full tasks data is stored at [hf](https://huggingface.co/datasets/GeomMotif/GeomMotif/tree/main)
+
 Scripts for validation are: \
 * for sequence models: \
 `evaluation/run_eval_seq.sh`
