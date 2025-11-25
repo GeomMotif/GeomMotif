@@ -120,14 +120,19 @@ def main(args):
     print('Running structure clustering')
 
     for entry in tqdm(success_df['entry'].unique()):
+        
         entry_mask = success_df['entry'] == entry
         entry_df = success_df[entry_mask]
 
-        pdb_files = [os.path.join(pdbs_dir, f'{entry}_{iteration}.pdb') for iteration in entry_df['iteration'].unique()]
-        
+        pdb_files = []
+        for idx, row in entry_df.iterrows():
+            pdb_iter = os.path.join(pdbs_dir, f'{row["gen_pdb_name"]}.pdb')
+            pdb_files.append(pdb_iter)
+
         if len(pdb_files) > 1:
             tm_matrix = run_tmalign_matrix(pdb_files, n_workers=n_cors, min_coverage=args.struct_div_cov)
             if np.any(tm_matrix > 0):
+                # tm_matrix = np.where((np.isnan(tm_matrix)) | (tm_matrix == 0), 0.00000, tm_matrix)
                 clusters = cluster_structures(tm_matrix, threshold=args.struct_div_tm)
                 df.loc[entry_df.index, 'struct_cluster'] = clusters
             else:

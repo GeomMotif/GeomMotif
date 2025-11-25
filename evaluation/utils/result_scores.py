@@ -56,7 +56,8 @@ def calculate_bootstrap_sun_metrics(full_df: pd.DataFrame,
                                     is_struct: bool,
                                     n_bootstrap_iterations: int = 5,
                                     bootstrap_sample_size: int = 100,
-                                    verbose: bool = True) -> dict:
+                                    verbose: bool = True,
+                                    random_state: int | np.random.Generator = 42) -> dict:
     """
     Calculate Success, Unique, Novel and SUN metrics using bootstrap.
 
@@ -67,6 +68,7 @@ def calculate_bootstrap_sun_metrics(full_df: pd.DataFrame,
 
     Returns dict with means and stds (where applicable), all in percent.
     """
+    rng = np.random.default_rng(random_state)
     # Precompute unique rate from the full table (clustering density among novel successes)
     success_df_full = get_sr(full_df, is_struct, verbose=False)
     # print(success_df_full)
@@ -102,7 +104,8 @@ def calculate_bootstrap_sun_metrics(full_df: pd.DataFrame,
     grouped = full_df.groupby('entry')
     for _ in range(n_bootstrap_iterations):
         # Sample with replacement within each entry group
-        sampled_df = grouped.sample(bootstrap_sample_size, replace=True)
+        iteration_seed = int(rng.integers(np.iinfo(np.int32).max, dtype=np.int64))
+        sampled_df = grouped.sample(bootstrap_sample_size, replace=True, random_state=iteration_seed)
 
         success_rates, novel_rates = _per_entry_rates(sampled_df, is_struct)
 
