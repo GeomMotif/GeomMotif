@@ -59,10 +59,15 @@ if __name__ == '__main__':
     setup_ddp()
 
     predictions, names = load_data(args.input_file, args.name_col)
-    
-    device_id = dist.get_rank()
+
+    if dist.is_available() and dist.is_initialized():
+        device_id = dist.get_rank()
+        total_device_number = dist.get_world_size()
+    else:
+        device_id = 0
+        total_device_number = 1
+
     set_seed(device_id)
-    total_device_number = dist.get_world_size()
     start_ind = device_id * (len(predictions) // total_device_number)
     end_ind = (device_id + 1) * (len(predictions) // total_device_number)
 
@@ -77,7 +82,7 @@ if __name__ == '__main__':
         index_list = indexes[start_ind:end_ind]
         names_device= [names[ind] for ind in indexes[start_ind:end_ind]]
     
-    device = f"cuda:{device_id}"
+    device = f"cuda:{device_id}" if torch.cuda.is_available() else "cpu"
     fold_sequences(
         proteins=predictions_device, 
         index_list=index_list, 

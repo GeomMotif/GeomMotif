@@ -5,14 +5,21 @@ import subprocess
 import json
 import math
 import copy
+import traceback
 from multiprocessing import Pool
 import torch
 import torch.multiprocessing as mp
-from ProteinMPNN.protein_mpnn_run import main as single_gpu_main
 import sys
 from pathlib import Path
 from tqdm import tqdm
 import shutil
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+PROTEIN_MPNN_DIR = os.path.join(THIS_DIR, "ProteinMPNN")
+if PROTEIN_MPNN_DIR not in sys.path:
+    sys.path.insert(0, PROTEIN_MPNN_DIR)
+
+from protein_mpnn_run import main as single_gpu_main
 def remove_tmp(folder):
     if os.path.exists(folder):
         shutil.rmtree(folder)
@@ -74,11 +81,16 @@ def split_dataset(jsonl_path, total_chunks):
     return chunks
 
 def mpnn_worker(gpu_id, process_id, args, chunk_path):
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-    worker_args = copy.deepcopy(args)
-    worker_args.jsonl_path = chunk_path
-    worker_args.out_folder = os.path.join(args.tmp_folder, f'gpu_{gpu_id}_process_{process_id}')
-    single_gpu_main(worker_args)
+    try:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+        worker_args = copy.deepcopy(args)
+        worker_args.jsonl_path = chunk_path
+        worker_args.out_folder = os.path.join(args.tmp_folder, f'gpu_{gpu_id}_process_{process_id}')
+        single_gpu_main(worker_args)
+    except Exception:
+        print(f"[MPNN worker failed] gpu_id={gpu_id}, process_id={process_id}, chunk_path={chunk_path}")
+        print(traceback.format_exc())
+        raise
 
 def run_mpnn_parallel(args):
     num_gpus = torch.cuda.device_count()
@@ -104,6 +116,11 @@ def run_mpnn_parallel(args):
                 processes.append(p)
     for p in processes:
         p.join()
+    failed_processes = [p for p in processes if p.exitcode not in (0, None)]
+    if failed_processes:
+        raise RuntimeError(
+            f"MPNN worker processes failed with exit codes: {[p.exitcode for p in failed_processes]}"
+        )
     for chunk_path in chunk_paths:
         try:
             os.remove(chunk_path)
@@ -125,15 +142,19 @@ def process_fasta(fasta_path):
                 current_seq['sequence'] += line
     if current_seq['header']:
         sequences.append(current_seq)
-    return sequences[1:] if len(sequences) > 1 else []
+    # ProteinMPNN typically writes native sequence first and generated next.
+    # Keep single-entry files as valid instead of dropping everything.
+    return sequences[1:] if len(sequences) > 1 else sequences
 
-def postprocess_sequences(out_folder, exp_name):
-    output_file_path = os.path.join(out_folder, f"{exp_name}_mpnn8.fasta")
+def postprocess_sequences(out_folder, exp_name, num_seq_per_target):
+    output_file_path = os.path.join(out_folder, f"{exp_name}_mpnn{num_seq_per_target}.fasta")
     seqs_dirs = []
     for root, dirs, files in os.walk(out_folder):
         for d in dirs:
             if d == 'seqs':
                 seqs_dirs.append(os.path.join(root, d))
+    print(f"Found {len(seqs_dirs)} seq directories under {out_folder}")
+    written_count = 0
     with open(output_file_path, 'w') as output_file:
         for seqs_dir in seqs_dirs:
             for file in os.listdir(seqs_dir):
@@ -144,7 +165,13 @@ def postprocess_sequences(out_folder, exp_name):
                     if remaining_seqs:
                         for idx, seq in enumerate(remaining_seqs, start=1):
                             output_file.write(f">{basename}_seq{idx}\n{seq['sequence']}\n")
-    print(f"Postprocessed sequences written to {output_file_path}")
+                            written_count += 1
+    if written_count == 0:
+        raise RuntimeError(
+            f"No sequences were written to {output_file_path}. "
+            "ProteinMPNN produced no sequence files or they were empty."
+        )
+    print(f"Postprocessed {written_count} sequences to {output_file_path}")
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -201,9 +228,9 @@ def main():
     args.jsonl_path = jsonl_path
     run_mpnn_parallel(args)
     # Stage 3: Postprocess sequences
-    postprocess_sequences(args.out_folder, args.exp_name)
+    postprocess_sequences(args.out_folder, args.exp_name, args.num_seq_per_target)
 
-    remove_tmp(args.tmp_folder)
+    # remove_tmp(args.tmp_folder)
 
 if __name__ == "__main__":
     main() 
