@@ -52,4 +52,5 @@ python novelty_and_diversity.py \
 
 # 5- show final scores:
 python print_sun_score.py \
-    --input-csv ${res_csv}
+    --input-csv ${res_csv} \
+    --meta-csv data/GeomMotif/task_conditions.csv
