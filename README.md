@@ -42,3 +42,13 @@ cd construction
 ./run_construction.sh
 ```
 ![Benchmark construction pipeline](construction.png)
+
+## Citation
+```bibtex
+@inproceedings{geommotif,
+  title={GeomMotif: A Benchmark for Arbitrary Geometric Preservation in Protein Generation},
+  author={Strashnov, Pavel and Shevtsov, Andrey and Meshchaninov, Viacheslav and Kardymon, Olga and Vetrov, Dmitry},
+  booktitle={The Fourteenth International Conference on Learning Representations},
+  year={2026} 
+}
+```
